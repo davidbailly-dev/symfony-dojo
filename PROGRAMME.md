@@ -1,54 +1,53 @@
-# Programme d'apprentissage Symfony
+# Programme d'apprentissage Symfony — Backend API
 
 **Profil** : PHP connu et pratiqué, découverte du framework Symfony · rythme intensif (quasi quotidien) · suivi via ce document, mis à jour au fil des sessions.
 
-**Environnement** : projet Symfony 7 (skeleton `--webapp`), PHP 8.2+, Composer, Symfony CLI, base SQLite en local, Doctrine ORM, Twig. Dépôt Git relié à GitHub, en Gitflow dès le Jour 1. Chaque jour = un défi concret avec des critères de réussite vérifiables (rendu dans le navigateur, sortie de commande, tests qui passent, lien de la PR).
+**Environnement** : projet Symfony 7 (skeleton minimal, sans le pack `webapp` — pas de Twig, pas de Forms, on n'installe que ce dont un backend API a besoin), PHP 8.2+, Composer, Symfony CLI, base SQLite en local, Doctrine ORM, VS Code avec l'extension REST Client. Dépôt Git relié à GitHub, en Gitflow dès le Jour 1. Chaque jour = un défi concret avec des critères de réussite vérifiables (réponse JSON testée au `curl` ou via `requests.http`, sortie de commande, tests qui passent, lien de la PR).
 
 **Comment ça marche** : tu fais le défi du jour en local, Claude Code corrige, commente ce qui aurait pu être fait autrement, et coche l'étape ici. Rien n'est chronométré à la seconde près — l'idée est d'enchaîner les jours sans trop de blancs pour que ça reste engageant.
 
-**Mini-projet fil rouge** : une bibliothèque personnelle. Un utilisateur peut s'inscrire, ajouter des livres (titre, description, date de publication, auteur, catégories), les modifier ou les supprimer, et ne peut gérer que ses propres livres. Le projet se construit couche par couche : d'abord des pages statiques, puis une vraie persistance en base, puis des formulaires, puis l'authentification, puis une API et des tests.
+**Mini-projet fil rouge** : une bibliothèque personnelle, exposée en **API JSON pure** (pas d'interface web, pas de Twig). Un utilisateur peut s'inscrire, ajouter des livres (titre, description, date de publication, auteur, catégories) via l'API, les modifier ou les supprimer, et ne peut gérer que ses propres livres. Le projet se construit couche par couche : d'abord des endpoints simples, puis une vraie persistance en base, puis création/modification via des payloads JSON validés, puis authentification par token, puis pagination/filtres et tests.
 
 ---
 
 ## Phase 0 — Mise en place (Jour 1)
 
-Objectif : un projet Symfony qui tourne, structure comprise, dépôt Git en Gitflow dès le départ.
+Objectif : un projet Symfony minimal qui tourne, structure comprise, dépôt Git en Gitflow dès le départ.
 
 - [ ] Vérifier PHP (8.2+) et Composer installés (`php -v`, `composer -V`).
 - [ ] Installer le Symfony CLI si absent (`symfony check:requirements`).
-- [ ] Créer le projet avec `symfony new . --webapp` (dans le dossier `symfony-dojo` déjà présent) — le pack `webapp` embarque Twig, Doctrine, Forms, Security, Mailer.
+- [ ] Créer le projet avec `symfony new .` **sans** `--webapp` (dans le dossier `symfony-dojo` déjà présent) — squelette minimal (routing, HttpFoundation) : pas de Twig ni de Forms installés d'emblée, on ajoutera chaque brique (Doctrine, Validator, Serializer, Security) au moment où le programme en a réellement besoin, comme sur un vrai projet API.
 - [ ] Configurer `DATABASE_URL` dans `.env.local` pour utiliser SQLite (fichier dans `var/`), pas de Docker nécessaire pour ce dojo.
-- [ ] Lancer `symfony server:start` (ou `symfony serve -d`) et vérifier la page d'accueil Symfony par défaut.
+- [ ] Lancer `symfony server:start` (ou `symfony serve -d`) et vérifier qu'il répond (même une 404 sur `/` est normale : aucune route n'est encore déclarée).
 - [ ] Initialiser Git si besoin, créer le repo GitHub `symfony-dojo`, relier, `.gitignore` Symfony standard (`vendor/`, `var/`, `.env.local`), premier commit "Initial commit" sur `main`.
 - [ ] Créer `develop` à partir de `main`, la pousser, la définir comme branche par défaut pour les PR.
-- [ ] Explorer la structure générée : `src/`, `config/`, `templates/`, `public/index.php`, `.env` — comprendre à quoi sert chaque dossier avant d'écrire du code.
+- [ ] Explorer la structure générée : `src/`, `config/`, `public/index.php`, `.env` — comprendre à quoi sert chaque dossier avant d'écrire du code.
 
-**Défi du jour** : me montrer la page d'accueil Symfony dans le navigateur (ou description), plus `git log --graph --all --decorate` montrant `main` et `develop`.
+**Défi du jour** : me montrer que le serveur démarre sans erreur (`symfony server:start` ou `symfony serve`), plus `git log --graph --all --decorate` montrant `main` et `develop`.
 
 ---
 
 ## Phase 1 — Fondamentaux (Jours 2 à 4)
 
-### Jour 2 — Routing et contrôleurs
-- Route par attribut PHP (`#[Route('/chemin', name: 'app_xxx')]`), paramètres de route (`/hello/{name}`), objet `Response`.
+### Jour 2 — Routing et contrôleurs API
+- Route par attribut PHP (`#[Route('/api/...', name: 'app_api_xxx', methods: ['GET'])]`), paramètres de route (`/api/hello/{name}`), `JsonResponse` plutôt que `Response` (pourquoi laisser Symfony gérer l'encodage JSON et les headers plutôt que faire `echo json_encode(...)` à la main).
 - `bin/console debug:router` pour lister les routes déclarées.
-- Défi : une page d'accueil personnalisée (pas celle par défaut) + une route dynamique `/hello/{name}` qui affiche un texte incluant le paramètre.
-- Branche : `feature/routes-de-base`.
-- Livrable : code des deux contrôleurs + sortie de `debug:router`.
+- Défi : un endpoint `GET /api/ping` qui renvoie `{"status": "ok"}` + une route dynamique `GET /api/hello/{name}` qui renvoie un JSON incluant le paramètre.
+- Branche : `feature/routes-api-de-base`.
+- Livrable : code des deux contrôleurs + sortie de `debug:router` + réponses `curl`.
 
-### Jour 3 — Twig
-- Layout de base (`base.html.twig`) étendu par les autres templates (`extends`, `block`), variables passées depuis le contrôleur vers la vue, filtres (`|date`, `|upper`, `|length`...).
-- `for` et `if` dans un template.
-- Défi : une page listant des livres (tableau PHP codé en dur dans le contrôleur pour l'instant) via une boucle `for`, avec un message "aucun livre" affiché via `if` quand la liste est vide.
-- Branche : `feature/page-liste-livres`.
-- Livrable : capture avec liste pleine, puis vidée dans le code pour montrer le message conditionnel.
+### Jour 3 — Sérialisation JSON
+- Installer le composant Serializer (`composer require symfony/serializer symfony/property-access`). Pourquoi ne pas sérialiser "à la main" (`json_encode` sur un objet) dès que la structure se complexifie : groupes de sérialisation, normalisation cohérente, séparation entre le modèle PHP et sa représentation JSON.
+- Défi : un tableau d'objets `Book` codés en dur dans le contrôleur (pas encore Doctrine) exposé via `GET /api/books`, sérialisé avec le `SerializerInterface`. Si le tableau est vide, l'endpoint renvoie `[]` (pas de HTML conditionnel, juste une réponse JSON cohérente dans les deux cas).
+- Branche : `feature/serialisation-livres`.
+- Livrable : code du contrôleur + réponse `curl` avec liste pleine, puis vidée dans le code pour montrer `[]`.
 
 ### Jour 4 — Doctrine et première entité
-- `make:entity Author` (nom), comprendre le mapping par attributs (`#[ORM\Entity]`, `#[ORM\Column]`), générer et exécuter une migration (`make:migration` ou `doctrine:migrations:diff` puis `doctrine:migrations:migrate`).
+- Installer Doctrine (`composer require orm-pack`, puis `--dev maker`). `make:entity Author` (nom), comprendre le mapping par attributs (`#[ORM\Entity]`, `#[ORM\Column]`), générer et exécuter une migration (`make:migration` ou `doctrine:migrations:diff` puis `doctrine:migrations:migrate`).
 - Comprendre le rôle de l'`EntityManager` et d'un `Repository`.
-- Défi : la liste du Jour 3 vient maintenant de la base de données (quelques auteurs insérés à la main) via `AuthorRepository`, plus de tableau en dur.
+- Défi : `GET /api/authors` vient maintenant de la base de données (quelques auteurs insérés à la main) via `AuthorRepository`, plus de tableau en dur.
 - Branche : `feature/persistance-auteurs`.
-- Livrable : code du contrôleur modifié + preuve que les données viennent bien de la base (ex. ajout d'un auteur en base, rafraîchi sans toucher au code).
+- Livrable : code du contrôleur modifié + preuve que les données viennent bien de la base (ex. ajout d'un auteur en base, requête `curl` rafraîchie sans toucher au code).
 
 **Fin de Phase 1** : créer `release/0.1.0` depuis `develop`, relire l'ensemble du code des jours 2-4, merger dans `main` et `develop`, taguer `v0.1.0`.
 
@@ -59,42 +58,44 @@ Objectif : un projet Symfony qui tourne, structure comprise, dépôt Git en Gitf
 Objectif : théorie avant pratique, pour ne pas empiler du code Symfony sans comprendre le modèle sous-jacent — surtout venant de PHP "classique".
 
 - Cycle requête/réponse : front controller (`public/index.php`), Kernel, Router, Controller, Response — et comment ça diffère d'un script PHP exécuté directement par le serveur.
-- Bundles : ce qu'ils sont, pourquoi Symfony est construit comme un assemblage de bundles plutôt qu'un monolithe.
+- Bundles : ce qu'ils sont, pourquoi Symfony est construit comme un assemblage de bundles plutôt qu'un monolithe (et pourquoi on n'a installé que `orm-pack`/`serializer` et pas `webapp` en entier au Jour 1).
 - Conteneur de services et injection de dépendances : pourquoi un contrôleur ou un service reçoit ses dépendances via le constructeur plutôt que de faire `new MonService()` ou d'aller chercher une instance globale.
 - Environnements (`dev`/`prod`/`test`), fichiers `.env` et `config/packages/` : comment la configuration change selon l'environnement.
 
-**Défi du jour** : m'expliquer avec tes mots (2-3 phrases) pourquoi Symfony utilise l'injection de dépendances plutôt que d'instancier les classes à la volée, avec un exemple concret (ex. injecter l'`EntityManager` ou un logger dans un contrôleur) plutôt qu'une explication abstraite.
+**Défi du jour** : m'expliquer avec tes mots (2-3 phrases) pourquoi Symfony utilise l'injection de dépendances plutôt que d'instancier les classes à la volée, avec un exemple concret (ex. injecter l'`EntityManager` ou le `SerializerInterface` dans un contrôleur) plutôt qu'une explication abstraite.
 
 ---
 
-## Phase 3 — CRUD et relations, à la main (Jours 6 à 9)
+## Phase 3 — CRUD API et relations, à la main (Jours 6 à 9)
 
-On construit le CRUD complet à la main (formulaires, contrôleur, validation), sans utiliser `make:crud` — l'idée est de comprendre chaque brique avant de laisser un générateur les assembler. `make:entity` et `make:controller` restent autorisés pour le squelette vide (ils ne génèrent pas de logique).
+On construit le CRUD complet à la main (désérialisation, validation, contrôleur), sans utiliser `make:crud` — l'idée est de comprendre chaque brique avant de laisser un générateur les assembler. `make:entity` et `make:controller` restent autorisés pour le squelette vide (ils ne génèrent pas de logique).
 
 ### Jour 6 — Entité Book et relation ManyToOne
 - `make:entity Book` (titre, description, date de publication) + relation `ManyToOne` vers `Author`.
 - Installer `DoctrineFixturesBundle`, écrire une fixture qui peuple quelques auteurs et livres factices.
-- Défi : `doctrine:fixtures:load` fonctionne, une page affiche les livres avec le nom de leur auteur (relation traversée depuis le template ou le repository).
+- Défi : `doctrine:fixtures:load` fonctionne, `GET /api/books` renvoie les livres avec leur auteur imbriqué dans le JSON (relation traversée depuis le repository, exposée via des groupes de sérialisation ou une structure dédiée).
 - Branche : `feature/entite-book-et-fixtures`.
-- Livrable : code de l'entité, de la fixture, et de la requête utilisée pour afficher les livres.
+- Livrable : code de l'entité, de la fixture, et de la requête utilisée pour construire la réponse.
 
-### Jour 7 — Formulaire de création
-- `BookType` (Symfony Forms), gestion à la main dans le contrôleur (`createForm`, `handleRequest`, `isSubmitted() && isValid()`), `persist` + `flush`.
-- Défi : formulaire de création d'un livre fonctionnel, avec redirection après succès et message flash.
-- Branche : `feature/formulaire-creation-livre`.
-- Livrable : code du `FormType` + contrôleur + démonstration d'un livre créé via le formulaire.
+### Jour 7 — Création via l'API (désérialisation + validation)
+- Désérialiser un payload JSON entrant en objet (`$serializer->deserialize()`) et le valider avec le `ValidatorInterface` (contraintes `Assert` posées sur l'entité) — pas de Symfony Forms ici : les Forms servent à générer/gérer un formulaire HTML affiché à un utilisateur, alors qu'ici on reçoit directement un payload JSON d'un client (curl, front séparé, appli mobile).
+- Le `curl` en une ligne devient vite lourd dès qu'il faut un body JSON : on passe à un fichier `requests.http` versionné à la racine, exécuté depuis VS Code (extension REST Client) — une requête par bloc, variables réutilisables pour l'URL de base et le token à venir au Jour 10.
+- Défi : `POST /api/books` avec un corps JSON crée un livre en base, réponse `201 Created` avec un header `Location` vers `/api/books/{id}`.
+- Branche : `feature/creation-livre-api`.
+- Livrable : code du contrôleur + requête dans `requests.http` + réponse `201`.
 
 ### Jour 8 — CRUD complet et validation
-- Actions `show`, `edit`, `delete` (delete protégé par token CSRF), contraintes de validation sur l'entité (`Assert\NotBlank`, `Assert\Length`...), affichage des erreurs dans le template.
-- Défi : CRUD `Book` complet (create/read/update/delete) validé de bout en bout, avec un message d'erreur visible si on soumet un formulaire invalide.
-- Branche : `feature/crud-livre-complet`.
-- Livrable : démonstration des 4 actions + capture d'une erreur de validation affichée.
+- Actions `show` (`GET /api/books/{id}`), `edit` (`PUT`/`PATCH`), `delete` (`DELETE`), contraintes de validation sur l'entité (`Assert\NotBlank`, `Assert\Length`...), erreurs renvoyées en JSON structuré (ex. liste des violations) avec un statut `400`.
+- Pourquoi pas de token CSRF ici : CSRF protège des requêtes envoyées depuis un navigateur via des cookies de session ; une API stateless consommée par `curl`/un client externe n'est pas concernée — la protection viendra de l'authentification par token (Jour 10).
+- Défi : CRUD `Book` complet (create/read/update/delete) validé de bout en bout, avec une requête invalide renvoyant `400` et le détail des erreurs en JSON.
+- Branche : `feature/crud-livre-complet-api`.
+- Livrable : démonstration des 4 actions au `curl` + réponse JSON d'une erreur de validation.
 
 ### Jour 9 — Relation ManyToMany
-- Entité `Category`, relation `ManyToMany` avec `Book`, champ formulaire multiple (`EntityType` avec `multiple: true`).
-- Défi : un livre peut avoir plusieurs catégories, assignables et modifiables depuis le formulaire, affichées sur la page de détail.
+- Entité `Category`, relation `ManyToMany` avec `Book`. Le payload JSON de création/édition accepte un tableau d'identifiants de catégories à associer.
+- Défi : un livre peut avoir plusieurs catégories, assignables via `POST`/`PUT`, visibles dans le JSON de la fiche livre (`GET /api/books/{id}`).
 - Branche : `feature/categories-livres`.
-- Livrable : capture d'un livre avec plusieurs catégories + code du formulaire modifié.
+- Livrable : réponse JSON d'un livre avec plusieurs catégories + code du contrôleur modifié.
 
 **Fin de Phase 3** : créer `release/0.2.0` depuis `develop`, relire l'ensemble du CRUD produit, merger dans `main` et `develop`, taguer `v0.2.0`.
 
@@ -102,24 +103,24 @@ On construit le CRUD complet à la main (formulaires, contrôleur, validation), 
 
 ## Phase 4 — Écosystème et outillage (Jours 10 à 12)
 
-### Jour 10 — Sécurité et propriété des données
-- `make:user`, formulaire d'inscription et de connexion, hashage des mots de passe.
-- Relation `Book` → `User` (propriétaire), contrôle d'accès : seul le propriétaire peut éditer/supprimer son livre (voter ou vérification explicite dans le contrôleur).
-- Défi : inscription et connexion fonctionnelles, et preuve qu'un utilisateur ne peut pas éditer le livre d'un autre (testé avec deux comptes).
-- Branche : `feature/authentification-et-proprietaire`.
-- Livrable : démonstration des deux comptes + code du contrôle d'accès.
+### Jour 10 — Sécurité API et propriété des données
+- `make:user`, endpoints `POST /api/register` et `POST /api/login`. Authentification par token API (colonne `apiToken` + authenticator dédié pour commencer — plus simple à comprendre qu'un JWT signé ; upgrade vers `LexikJWTAuthenticationBundle` en bonus si tu veux aller plus loin). Le client authentifie ses requêtes suivantes via le header `Authorization: Bearer <token>`.
+- Relation `Book` → `User` (propriétaire), contrôle d'accès : seul le propriétaire peut éditer/supprimer son livre (voter ou vérification explicite dans le contrôleur), réponse `401` si non authentifié, `403` si authentifié mais pas propriétaire (JSON dans les deux cas).
+- Défi : inscription et connexion fonctionnelles (token obtenu), et preuve qu'un utilisateur ne peut pas éditer le livre d'un autre (testé avec deux comptes, deux tokens).
+- Branche : `feature/authentification-api-et-proprietaire`.
+- Livrable : démonstration des deux comptes (requêtes `curl` avec les deux tokens) + code du contrôle d'accès.
 
 ### Jour 11 — Tests fonctionnels
-- PHPUnit, `WebTestCase`, base de données de test séparée.
-- Défi : au moins deux tests fonctionnels qui passent (ex. la liste des livres répond 200 et contient un titre connu ; un accès non autorisé à l'édition d'un livre d'autrui répond 403).
+- PHPUnit, `WebTestCase` avec requêtes JSON (`$client->request(..., content: json_encode(...))`), base de données de test séparée, assertions sur le code de statut et le contenu JSON de la réponse.
+- Défi : au moins deux tests fonctionnels qui passent (ex. `GET /api/books` répond `200` et contient un titre connu ; un accès non autorisé à l'édition du livre d'un autre utilisateur répond `403`).
 - Branche : `feature/tests-fonctionnels`.
 - Livrable : sortie de `php bin/phpunit` verte.
 
-### Jour 12 — API JSON
-- Endpoint `/api/books` retournant du JSON (sérialisation avec le composant Serializer), pagination simple (`setMaxResults`/`setFirstResult`).
-- Défi : endpoint consommable (testé avec `curl` ou Postman), pagination visible dans la réponse.
-- Branche : `feature/api-books-json`.
-- Bonus : filtrer par auteur ou catégorie via un paramètre de requête (`?author=...`).
+### Jour 12 — Pagination et filtres avancés
+- Pagination sur `GET /api/books` (`setMaxResults`/`setFirstResult`, métadonnées `total`/`page`/`limit` dans la réponse JSON), filtres combinables par query params (`?author=...&category=...`), tri (`?sort=...`).
+- Défi : réponse paginée avec métadonnées visibles, filtre combiné (auteur + catégorie) testé au `curl`.
+- Branche : `feature/pagination-filtres-api`.
+- Bonus : comparer en 2-3 phrases ce qu'apporterait API Platform (pagination/filtres/sérialisation générés automatiquement à partir des attributs de l'entité) par rapport à ce que tu viens d'écrire à la main — pour comprendre pourquoi/quand l'utiliser sur un vrai projet.
 
 **Fin de Phase 4** : créer `release/0.3.0` depuis `develop`, relire l'intégration sécurité/tests/API, merger dans `main` et `develop`, taguer `v0.3.0`.
 
@@ -129,9 +130,9 @@ On construit le CRUD complet à la main (formulaires, contrôleur, validation), 
 
 Un scénario complet, enchaîné sans étapes détaillées cette fois — à toi de dérouler la bonne architecture :
 
-> Complète la bibliothèque personnelle : une page de recherche/filtre des livres (par titre, auteur, catégorie), une page de profil utilisateur listant uniquement ses propres livres, les tests fonctionnels du Jour 11 étendus pour couvrir ces nouvelles routes, et un `README.md` à jour expliquant comment installer et lancer le projet.
+> Complète l'API de la bibliothèque personnelle : une recherche texte libre sur les livres (titre/description, en plus des filtres du Jour 12), un endpoint `GET /api/me/books` listant uniquement les livres de l'utilisateur authentifié, les tests fonctionnels du Jour 11 étendus pour couvrir ces nouvelles routes, et un `README.md` à jour documentant l'API (endpoints disponibles, exemples de requêtes `curl`, comment installer et lancer le projet).
 
-- Livrable : le projet complet (repo GitHub), une démonstration du rendu, un court résumé de tes choix (pourquoi telle requête Doctrine plutôt qu'une autre, pourquoi tel contrôle d'accès).
+- Livrable : le projet complet (repo GitHub), une démonstration des endpoints au `curl`/Postman, un court résumé de tes choix (pourquoi telle requête Doctrine plutôt qu'une autre, pourquoi tel contrôle d'accès).
 - Découpage libre en plusieurs `feature/*` nommées selon les fonctionnalités livrées, c'est aussi ça l'exercice : savoir décider soi-même où couper.
 - Revue complète comme si c'était une review de code réelle.
 - Clôture : `release/1.0.0` depuis `develop`, merge dans `main` et `develop`, tag `v1.0.0`.
