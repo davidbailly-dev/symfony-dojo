@@ -73,7 +73,8 @@ On construit le CRUD complet à la main (désérialisation, validation, contrôl
 ### Jour 6 — Entité Book et relation ManyToOne
 - `make:entity Book` (titre, description, date de publication) + relation `ManyToOne` vers `Author`.
 - Installer `DoctrineFixturesBundle`, écrire une fixture qui peuple quelques auteurs et livres factices.
-- Défi : `doctrine:fixtures:load` fonctionne, `GET /api/books` renvoie les livres avec leur auteur imbriqué dans le JSON (relation traversée depuis le repository, exposée via des groupes de sérialisation ou une structure dédiée).
+- Deux pièges classiques du Serializer avec Doctrine à anticiper : le format par défaut d'un `DateTime` sérialisé (objet verbeux avec timezone plutôt qu'une simple chaîne ISO — un `DateTimeNormalizer` ou un format explicite règle ça), et la sérialisation circulaire si la relation est bidirectionnelle (`Book` → `author` → `books` → ... à l'infini) — à limiter avec des groupes de sérialisation ou en ne mappant pas la relation inverse pour l'instant.
+- Défi : `doctrine:fixtures:load` fonctionne, `GET /api/books` renvoie les livres avec leur auteur imbriqué dans le JSON (relation traversée depuis le repository, exposée via des groupes de sérialisation ou une structure dédiée), avec une date de publication lisible dans le JSON.
 - Branche : `feature/entite-book-et-fixtures`.
 - Livrable : code de l'entité, de la fixture, et de la requête utilisée pour construire la réponse.
 
@@ -86,13 +87,15 @@ On construit le CRUD complet à la main (désérialisation, validation, contrôl
 
 ### Jour 8 — CRUD complet et validation
 - Actions `show` (`GET /api/books/{id}`), `edit` (`PUT`/`PATCH`), `delete` (`DELETE`), contraintes de validation sur l'entité (`Assert\NotBlank`, `Assert\Length`...), erreurs renvoyées en JSON structuré (ex. liste des violations) avec un statut `400`.
+- Par défaut, Symfony renvoie du HTML pour les erreurs non gérées (route inexistante → 404 HTML, exception non catchée → 500 HTML, body JSON malformé envoyé à `deserialize()`) — ce qui casse la promesse "jamais de HTML" de l'API. Mettre en place un listener sur `kernel.exception` qui transforme systématiquement ces cas en réponse JSON avec le bon statut.
 - Pourquoi pas de token CSRF ici : CSRF protège des requêtes envoyées depuis un navigateur via des cookies de session ; une API stateless consommée par `curl`/un client externe n'est pas concernée — la protection viendra de l'authentification par token (Jour 10).
-- Défi : CRUD `Book` complet (create/read/update/delete) validé de bout en bout, avec une requête invalide renvoyant `400` et le détail des erreurs en JSON.
+- Défi : CRUD `Book` complet (create/read/update/delete) validé de bout en bout, avec une requête invalide renvoyant `400` et le détail des erreurs en JSON, un `GET` sur un id inexistant renvoyant un `404` en JSON, et un body JSON malformé renvoyant une erreur JSON propre plutôt qu'une page HTML.
 - Branche : `feature/crud-livre-complet-api`.
-- Livrable : démonstration des 4 actions au `curl` + réponse JSON d'une erreur de validation.
+- Livrable : démonstration des 4 actions au `curl` + réponse JSON d'une erreur de validation + réponse JSON d'un 404.
 
 ### Jour 9 — Relation ManyToMany
 - Entité `Category`, relation `ManyToMany` avec `Book`. Le payload JSON de création/édition accepte un tableau d'identifiants de catégories à associer.
+- Même vigilance qu'au Jour 6 sur la sérialisation circulaire si `Category` référence `books` en retour : limiter via des groupes de sérialisation plutôt que sérialiser la relation inverse.
 - Défi : un livre peut avoir plusieurs catégories, assignables via `POST`/`PUT`, visibles dans le JSON de la fiche livre (`GET /api/books/{id}`).
 - Branche : `feature/categories-livres`.
 - Livrable : réponse JSON d'un livre avec plusieurs catégories + code du contrôleur modifié.
@@ -105,10 +108,12 @@ On construit le CRUD complet à la main (désérialisation, validation, contrôl
 
 ### Jour 10 — Sécurité API et propriété des données
 - `make:user`, endpoints `POST /api/register` et `POST /api/login`. Authentification par token API (colonne `apiToken` + authenticator dédié pour commencer — plus simple à comprendre qu'un JWT signé ; upgrade vers `LexikJWTAuthenticationBundle` en bonus si tu veux aller plus loin). Le client authentifie ses requêtes suivantes via le header `Authorization: Bearer <token>`.
+- À l'inscription, un email déjà utilisé doit renvoyer un `409 Conflict` en JSON plutôt que laisser remonter l'erreur SQL de contrainte unique brute.
 - Relation `Book` → `User` (propriétaire), contrôle d'accès : seul le propriétaire peut éditer/supprimer son livre (voter ou vérification explicite dans le contrôleur), réponse `401` si non authentifié, `403` si authentifié mais pas propriétaire (JSON dans les deux cas).
-- Défi : inscription et connexion fonctionnelles (token obtenu), et preuve qu'un utilisateur ne peut pas éditer le livre d'un autre (testé avec deux comptes, deux tokens).
+- Note CORS : les tests restent en `curl`/REST Client donc le navigateur n'est pas concerné ici, mais un vrai front séparé sur un autre domaine serait bloqué sans `NelmioCorsBundle` — à garder en tête si le projet doit un jour être consommé par une appli web.
+- Défi : inscription et connexion fonctionnelles (token obtenu), une tentative de ré-inscription avec le même email renvoyant `409`, et preuve qu'un utilisateur ne peut pas éditer le livre d'un autre (testé avec deux comptes, deux tokens).
 - Branche : `feature/authentification-api-et-proprietaire`.
-- Livrable : démonstration des deux comptes (requêtes `curl` avec les deux tokens) + code du contrôle d'accès.
+- Livrable : démonstration des deux comptes (requêtes `curl` avec les deux tokens) + code du contrôle d'accès + réponse `409` sur email dupliqué.
 
 ### Jour 11 — Tests fonctionnels
 - PHPUnit, `WebTestCase` avec requêtes JSON (`$client->request(..., content: json_encode(...))`), base de données de test séparée, assertions sur le code de statut et le contenu JSON de la réponse.
@@ -118,6 +123,7 @@ On construit le CRUD complet à la main (désérialisation, validation, contrôl
 
 ### Jour 12 — Pagination et filtres avancés
 - Pagination sur `GET /api/books` (`setMaxResults`/`setFirstResult`, métadonnées `total`/`page`/`limit` dans la réponse JSON), filtres combinables par query params (`?author=...&category=...`), tri (`?sort=...`).
+- Le Jour 11 n'a couvert que des tests fonctionnels (`WebTestCase`, bout en bout via HTTP) : la logique de filtrage/tri dans le repository (query builder) est un bon candidat pour un premier test unitaire isolé, sans passer par une requête HTTP complète.
 - Défi : réponse paginée avec métadonnées visibles, filtre combiné (auteur + catégorie) testé au `curl`.
 - Branche : `feature/pagination-filtres-api`.
 - Bonus : comparer en 2-3 phrases ce qu'apporterait API Platform (pagination/filtres/sérialisation générés automatiquement à partir des attributs de l'entité) par rapport à ce que tu viens d'écrire à la main — pour comprendre pourquoi/quand l'utiliser sur un vrai projet.
