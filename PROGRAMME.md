@@ -14,14 +14,14 @@
 
 Objectif : un projet Symfony minimal qui tourne, structure comprise, dépôt Git en Gitflow dès le départ.
 
-- [ ] Vérifier PHP (8.2+) et Composer installés (`php -v`, `composer -V`).
-- [ ] Installer le Symfony CLI si absent (`symfony check:requirements`).
-- [ ] Créer le projet avec `symfony new .` **sans** `--webapp` (dans le dossier `symfony-dojo` déjà présent) — squelette minimal (routing, HttpFoundation) : pas de Twig ni de Forms installés d'emblée, on ajoutera chaque brique (Doctrine, Validator, Serializer, Security) au moment où le programme en a réellement besoin, comme sur un vrai projet API.
-- [ ] Configurer `DATABASE_URL` dans `.env.local` pour utiliser SQLite (fichier dans `var/`), pas de Docker nécessaire pour ce dojo.
-- [ ] Lancer `symfony server:start` (ou `symfony serve -d`) et vérifier qu'il répond (même une 404 sur `/` est normale : aucune route n'est encore déclarée).
-- [ ] Initialiser Git si besoin, créer le repo GitHub `symfony-dojo`, relier, `.gitignore` Symfony standard (`vendor/`, `var/`, `.env.local`), premier commit "Initial commit" sur `main`.
-- [ ] Créer `develop` à partir de `main`, la pousser, la définir comme branche par défaut pour les PR.
-- [ ] Explorer la structure générée : `src/`, `config/`, `public/index.php`, `.env` — comprendre à quoi sert chaque dossier avant d'écrire du code.
+- [x] Vérifier PHP (8.2+) et Composer installés (`php -v`, `composer -V`).
+- [x] Installer le Symfony CLI si absent (`symfony check:requirements`).
+- [x] Créer le projet avec `symfony new .` **sans** `--webapp` (dans le dossier `symfony-dojo` déjà présent) — squelette minimal (routing, HttpFoundation) : pas de Twig ni de Forms installés d'emblée, on ajoutera chaque brique (Doctrine, Validator, Serializer, Security) au moment où le programme en a réellement besoin, comme sur un vrai projet API.
+- [x] Configurer `DATABASE_URL` dans `.env.local` pour utiliser SQLite (fichier dans `var/`), pas de Docker nécessaire pour ce dojo.
+- [x] Lancer `symfony server:start` (ou `symfony serve -d`) et vérifier qu'il répond (même une 404 sur `/` est normale : aucune route n'est encore déclarée).
+- [x] Initialiser Git si besoin, créer le repo GitHub `symfony-dojo`, relier, `.gitignore` Symfony standard (`vendor/`, `var/`, `.env.local`), premier commit "Initial commit" sur `main`.
+- [x] Créer `develop` à partir de `main`, la pousser, la définir comme branche par défaut pour les PR.
+- [x] Explorer la structure générée : `src/`, `config/`, `public/index.php`, `.env` — comprendre à quoi sert chaque dossier avant d'écrire du code.
 
 **Défi du jour** : me montrer que le serveur démarre sans erreur (`symfony server:start` ou `symfony serve`), plus `git log --graph --all --decorate` montrant `main` et `develop`.
 
@@ -147,4 +147,4 @@ Un scénario complet, enchaîné sans étapes détaillées cette fois — à toi
 
 ## Journal de progression
 
-*(mis à jour au fil des sessions Claude Code — vide pour l'instant, le programme n'a pas encore démarré)*
+- **2026-08-27** — Jour 1 validé. Squelette Symfony généré (sans `--webapp`) dans le dépôt existant en le construisant à part dans `/tmp` puis en le rapatriant à la racine, `main`/`develop` déjà en place ont été conservés sans conflit avec les fichiers de doc. SQLite configuré via `.env.local`, serveur local démarré et répond (404 attendu, aucune route déclarée). Commit `feat: initialise le squelette Symfony minimal` poussé directement sur `develop` (pas de `feature/*` pour ce jour de mise en place).
